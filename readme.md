@@ -135,3 +135,39 @@ broker: even if the subscriber were restarted, slow, or temporarily
 disconnected, RabbitMQ would still accept the publisher's events and hold
 them in the queue until a consumer is ready.
 
+---
+
+## Monitoring chart based on publisher
+
+If `cargo run` is executed several times in a row from this directory while
+the management UI at `http://localhost:15672` is open on the **Overview**
+tab, the **Message rates** chart (second chart from the top) shows clear
+**spikes** — one per publisher run — on the *Publish*, *Deliver* and
+*Consumer ack* lines. Each spike is 5 messages tall, matching the five
+`publish_event` calls in `main.rs`.
+
+Screenshot of the management UI showing the spikes:
+
+![RabbitMQ message-rates spikes](screenshots/rabbitmq-message-spikes.png)
+
+### Why does the chart spike like that?
+
+Each `cargo run` is one *burst* of activity:
+
+1. The publisher process starts, opens a TCP/AMQP connection to the
+   broker, declares the `user_created` queue, and sends five
+   `basic.publish` frames back-to-back.
+2. The broker accepts those five messages, increments its **Publish**
+   counter for the current second, and almost immediately dispatches them
+   to the connected subscriber, which increments **Deliver (manual ack)**
+   and then **Consumer ack** as each message's handler returns `Ok(())`.
+3. The publisher process exits, closing its connection.
+
+Because all five messages travel through the broker within the same
+1-second sampling window, the chart records them as a single spike of
+~5 msg/s. Between runs the rates fall back to zero — no traffic, no work
+to do. The more publisher runs are fired in quick succession, the more
+spikes appear, and the spike heights grow if multiple runs land in the
+same one-second window. The chart is, in effect, a histogram of how
+"busy" the publisher has been per second.
+
