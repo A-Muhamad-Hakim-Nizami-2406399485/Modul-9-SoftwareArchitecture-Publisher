@@ -71,3 +71,28 @@ this machine, port 5672, and log in as `guest`/`guest`.*" The publisher uses
 that connection to **push** events into the `user_created` queue; the
 subscriber uses the same connection details to **pull** events out of it.
 The broker is the rendezvous point.
+
+---
+
+## Running RabbitMQ as message broker
+
+The broker is started locally as a Docker container with the standard
+RabbitMQ management image:
+
+```bash
+docker run -d --rm --name rabbitmq \
+    -p 5672:5672 -p 15672:15672 \
+    rabbitmq:3.13-management
+```
+
+- Port **5672** is the AMQP port (the one the publisher and subscriber
+  connect to).
+- Port **15672** is the management UI port — browsing to
+  `http://localhost:15672` and logging in with `guest` / `guest` shows the
+  Overview dashboard with queues, exchanges, connections, and the live
+  message-rate charts.
+
+Screenshot of the running RabbitMQ dashboard (Overview tab, port 15672):
+
+![RabbitMQ Overview](screenshots/rabbitmq-overview.png)
+
