@@ -96,3 +96,42 @@ Screenshot of the running RabbitMQ dashboard (Overview tab, port 15672):
 
 ![RabbitMQ Overview](screenshots/rabbitmq-overview.png)
 
+---
+
+## Sending and processing event
+
+With RabbitMQ running and the subscriber connected to the `user_created`
+queue, running `cargo run` in this publisher directory pushes **five
+`UserCreatedEventMessage`s** to the broker. The subscriber console then
+prints one line per received event:
+
+```
+In Hakim's Computer [2406399485]. Message received: UserCreatedEventMessage { user_id: "1", user_name: "2406399485-Amir" }
+In Hakim's Computer [2406399485]. Message received: UserCreatedEventMessage { user_id: "2", user_name: "2406399485-Budi" }
+In Hakim's Computer [2406399485]. Message received: UserCreatedEventMessage { user_id: "3", user_name: "2406399485-Cica" }
+In Hakim's Computer [2406399485]. Message received: UserCreatedEventMessage { user_id: "4", user_name: "2406399485-Dira" }
+In Hakim's Computer [2406399485]. Message received: UserCreatedEventMessage { user_id: "5", user_name: "2406399485-Emir" }
+```
+
+Screenshot of the two consoles side-by-side (publisher on the left having
+finished, subscriber on the right printing the five received events):
+
+![Publisher and Subscriber consoles](screenshots/publisher-subscriber-consoles.png)
+
+What is happening here is the canonical event-driven flow:
+
+1. The publisher process opens an AMQP connection to RabbitMQ and calls
+   `publish_event("user_created", …)` five times in quick succession,
+   then exits — its job is done the moment the broker has acknowledged the
+   message. It does not know who (if anyone) will consume the events.
+2. The broker stores each event in the `user_created` queue and immediately
+   delivers it to any subscriber that has registered as a consumer of that
+   queue. With one subscriber running, it sees all five events.
+3. The subscriber's `UserCreatedHandler::handle` method runs once per
+   delivered event and prints the line above.
+
+This *decoupling in time and address space* is the whole point of using a
+broker: even if the subscriber were restarted, slow, or temporarily
+disconnected, RabbitMQ would still accept the publisher's events and hold
+them in the queue until a consumer is ready.
+
